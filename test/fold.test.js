@@ -22,6 +22,7 @@ class Box {
 class Text {
   constructor(text) {
     this._text = text
+    this.visible = true
   }
   get plainText() {
     return this._text
@@ -372,6 +373,53 @@ test("bash_lines sets how much of the command survives", async (t) => {
   await settle()
 
   assert.equal(cmd.maxHeight, 3)
+})
+
+test("bash_output folds the output, the hint and the chrome too", async (t) => {
+  const { block, cmd, wrap } = shellBlock()
+  const h = harness(t, [block])
+  await plugin.tui(h.api, { bash_output: true })
+  await settle()
+
+  assert.equal(cmd.maxHeight, 1)
+  assert.equal(wrap.kids[1].visible, false)
+  assert.equal(wrap.kids[2].visible, false)
+  assert.equal(wrap.gap, 0)
+  assert.equal(block.gap, 0)
+  assert.equal(block.paddingTop, 0)
+  assert.equal(block.paddingBottom, 0)
+  assert.equal(block.onMouseUp, undefined)
+
+  cmd.onMouseUp(click())
+  assert.equal(cmd.maxHeight, undefined)
+  assert.equal(wrap.kids[1].visible, true)
+  assert.equal(wrap.kids[2].visible, true)
+  assert.equal(wrap.gap, 1)
+  assert.equal(block.gap, 1)
+  assert.equal(block.paddingTop, 1)
+})
+
+test("bash_output leaves an error line outside the wrapper visible", async (t) => {
+  const { block, wrap } = shellBlock()
+  const error = new Text("exit code 1")
+  block.kids.push(error)
+  const h = harness(t, [block])
+  await plugin.tui(h.api, { bash_output: true })
+  await settle()
+
+  assert.equal(wrap.kids[1].visible, false)
+  assert.equal(error.visible, true)
+})
+
+test("bash_min_lines overrides min_lines for commands only", async (t) => {
+  const short = shellBlock({ lines: 1 })
+  const small = editBlock("← Edit tiny.ts", ["--- a/tiny.ts", "+++ b/tiny.ts", "-a", "+b"].join("\n"))
+  const h = harness(t, [short.block, small.block])
+  await plugin.tui(h.api, { bash_min_lines: 0 })
+  await settle()
+
+  assert.equal(short.cmd.maxHeight, 1)
+  assert.equal(small.body.maxHeight, undefined)
 })
 
 test("ctrl+o folds and unfolds commands alongside diffs", async (t) => {

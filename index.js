@@ -25,6 +25,8 @@
 //   key        binding that folds/unfolds every block        (default "ctrl+o")
 //   bash       fold long bash commands too                   (default true)
 //   bash_lines rows of the command left visible when folded  (default 1)
+//   bash_min_lines  leave commands shorter than this alone   (default min_lines)
+//   bash_output     fold the output and padding with the command (default false)
 
 const DEFAULTS = {
   lines: 0,
@@ -34,6 +36,7 @@ const DEFAULTS = {
   key: "ctrl+o",
   bash: true,
   bash_lines: 1,
+  bash_output: false,
 }
 
 // BlockTool titles of the file-writing tools, as rendered in the transcript.
@@ -87,7 +90,7 @@ function shellCommand(block) {
     if (!inner.length) continue
     const text = plain(inner[0])
     if (typeof text !== "string" || !text.startsWith(PROMPT)) return
-    return { node: inner[0], text }
+    return { node: inner[0], text, box: child }
   }
 }
 
@@ -188,6 +191,8 @@ export default {
     const floor = Math.max(0, Number(opts.min_lines) || 0)
     const shell = opts.bash !== false
     const shellPeek = Math.max(0, Number(opts.bash_lines) || 0)
+    const shellFloor = opts.bash_min_lines === undefined ? floor : Math.max(0, Number(opts.bash_min_lines) || 0)
+    const shellOutput = opts.bash_output === true
 
     // Folded blocks, by their block renderable. WeakMap so a session switch,
     // which destroys the renderables, drops the state with them.
@@ -209,6 +214,13 @@ export default {
       state.folded = fold
       state.body.forEach((node, index) => {
         try {
+          // A text renderable at max-height 0 still paints its first row, so
+          // the output and the hint, stacked at the same spot, would bleed into
+          // each other. display: none takes them out of layout and paint both.
+          if (state.hide && index > 0) {
+            node.visible = fold ? false : state.visible[index]
+            return
+          }
           // Yoga honours a 0 max-height, so the body disappears from layout
           // entirely rather than leaving a gap where it used to be.
           node.maxHeight = fold ? (index === 0 ? state.peek : 0) : undefined
@@ -220,14 +232,16 @@ export default {
       // around one line of title. Collapse the chrome too so a folded block
       // reads as the single row it now is. The restored values are BlockTool's
       // own (paddingTop/Bottom 1, gap 1) because opentui gives these setters no
-      // getters to read the originals back from. Never for a shell block: its
-      // output is a sibling of the command and stays on screen, so the chrome
-      // is still holding something up.
+      // getters to read the originals back from. A shell block uses the same
+      // values, plus a gap-1 wrapper around command and output; it only
+      // collapses when the output folds too, since otherwise the chrome is
+      // still holding something up.
       if (state.chrome) {
         try {
           state.block.gap = fold ? 0 : 1
           state.block.paddingTop = fold ? 0 : 1
           state.block.paddingBottom = fold ? 0 : 1
+          if (state.inner) state.inner.gap = fold ? 0 : 1
         } catch {}
       }
       if (!titles || !state.title) return
@@ -288,15 +302,22 @@ export default {
     function adoptShell(block) {
       const found = shellCommand(block)
       if (!found) return
-      if (commandRows(found.node, found.text) < floor) return
+      if (commandRows(found.node, found.text) < shellFloor) return
 
+      // The command, then everything after it in the same box: the output and
+      // the host's "Click to expand" hint. An error line is a sibling of the
+      // box, not inside it, so a failed command still says so while folded.
+      const body = shellOutput ? [found.node, ...children(found.box).slice(1)] : [found.node]
       const state = {
         block,
-        body: [found.node],
-        overflow: [found.node.overflow],
+        body,
+        overflow: body.map((node) => node.overflow),
+        visible: body.map((node) => node.visible),
         title: undefined,
         peek: shellPeek,
-        chrome: false,
+        chrome: shellOutput,
+        hide: shellOutput,
+        inner: found.box,
         folded: false,
       }
       known.set(block, state)

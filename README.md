@@ -81,13 +81,15 @@ Do not put the file in `~/.config/opencode/plugin/`. That directory is auto-disc
 | `folded` | `true` | Whether blocks start folded. `false` gives you only the toggle. |
 | `key` | `"ctrl+o"` | Binding for fold/unfold-all. `ctrl+o` is unbound in opencode; Claude Code uses it for the same thing. Set to `""` for none. |
 | `bash` | `true` | Fold long bash commands too. `false` leaves every bash block exactly as the host draws it. |
-| `bash_lines` | `1` | Rows of the command left showing when folded. `1` keeps the line that says what the thing was. Commands shorter than `min_lines` are never folded. |
+| `bash_lines` | `1` | Rows of the command left showing when folded. `1` keeps the line that says what the thing was. Commands shorter than `bash_min_lines` are never folded. |
+| `bash_min_lines` | `min_lines` | Commands occupying fewer rows than this are left alone. `0` folds every finished command, however short. |
+| `bash_output` | `false` | Fold the output and the host's `Click to expand` hint along with the command, and tighten the padding, so a finished command occupies one row. Errors stay visible. |
 
 ## What it does not touch
 
 - **Permission dialogs.** The diff you approve renders in full, always. The plugin only ever walks inside the transcript scrollbox, and the permission preview is not in it.
 - **Diagnostics and errors.** Only the children carrying a diff or a file body get folded, so an edit that introduced a type error still says so with the block closed.
-- **Bash output, and the click that expands it.** Only the *command* folds; the output keeps the host's ten-line collapse. opencode puts its own click handler on a bash block to expand that output, and opentui declares `onMouseUp` as a setter with no getter — so a handler cannot be read back and chained, and overwriting one destroys it. This plugin attaches to the command text instead and calls `stopPropagation()`: clicking the command folds the command, clicking anywhere else in the block does exactly what it did before.
+- **Bash output, and the click that expands it.** By default only the *command* folds; the output keeps the host's ten-line collapse (set `bash_output: true` to fold it as well). opencode puts its own click handler on a bash block to expand that output, and opentui declares `onMouseUp` as a setter with no getter — so a handler cannot be read back and chained, and overwriting one destroys it. This plugin attaches to the command text instead and calls `stopPropagation()`: clicking the command folds the command, clicking anywhere else in the block does exactly what it did before.
 - **Todos, questions, and the generic fallback.** They keep the host's own collapse behaviour. Matching is on the six BlockTool titles the file tools use (`← Edit`, `# Wrote`, `← Patched`, `# Created`, `# Deleted`, `# Moved`), plus the `$ ` a bash block prefixes its command with.
 
 ## How it works, for anyone extending it
