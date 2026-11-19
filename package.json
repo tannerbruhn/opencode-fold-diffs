@@ -1,6 +1,6 @@
 {
   "name": "opencode-fold-diffs",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "OpenCode TUI plugin: write, edit, apply_patch and long bash commands render folded to their title line, click or ctrl+o to open them.",
   "license": "MIT",
   "type": "module",
@@ -19,7 +19,7 @@
     "tui"
   ],
   "scripts": {
-    "test": "node --test test/"
+    "test": "node --test test/*.test.js"
   },
   "exports": {
     "./tui": "./index.js"

@@ -108,8 +108,8 @@ Blocks are re-scanned on `message.part.updated` and `message.updated`, plus a 2 
 
 ## Status
 
-Written against opencode 1.18.28. The tree-walking, block matching, fold/unfold
-and toggle logic run green against a mock renderer tree (`node --test test/`),
+Written against opencode 1.18.28, and checked on 1.19.6. The tree-walking, block matching, fold/unfold
+and toggle logic run green against a mock renderer tree (`npm test`),
 and every renderable property it touches was checked against the shipped binary:
 `maxHeight` and `overflow` are yoga setters, `onMouseUp` is a setter with no
 getter, `plainText` is a getter on text renderables, and `height` is a getter
